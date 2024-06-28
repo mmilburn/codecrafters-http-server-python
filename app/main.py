@@ -16,8 +16,7 @@ def encode_to_gzip(data):
             with gzip.GzipFile(fileobj=buf, mode='wb') as f:
                 f.write(data.encode('utf-8'))
             return buf.getvalue()
-    except Exception as e:
-        print(e)
+    except Exception:
         return None
 
 
@@ -73,7 +72,6 @@ def parse_http_request(request_data):
 def create_http_response(status_code=500, status_message="Internal Server Error", content="", content_type="text/html",
                          compression=False):
     # HTTP response
-    print(compression)
     response = f"HTTP/1.1 {status_code} {status_message}\r\n"
     response += f"Content-Type: {content_type}\r\n"  # "; charset=utf-8\r\n"
 
@@ -98,7 +96,6 @@ def handle_client(client_socket, directory_path):
         request = parse_http_request(data)
         method = request['method']
         path = request['path']
-        # print(request['headers'])
         compression = True if 'accept-encoding' in request['headers'] and "gzip" in request['headers'][
             'accept-encoding'] else False
         if method.upper() == "GET":
