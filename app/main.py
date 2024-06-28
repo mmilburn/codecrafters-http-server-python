@@ -1,4 +1,6 @@
 import argparse
+import gzip
+import io
 import os
 import socket
 import threading
@@ -6,6 +8,17 @@ import threading
 echo = "/echo/"
 user_agent = "/user-agent"
 files_path = "/files/"
+
+
+def encode_to_gzip(data):
+    try:
+        with io.BytesIO() as buf:
+            with gzip.GzipFile(fileobj=buf, mode='wb') as f:
+                f.write(data.encode('utf-8'))
+            return buf.getvalue()
+    except Exception as e:
+        print(e)
+        return None
 
 
 def write_file_response(file_path, content):
@@ -55,14 +68,25 @@ def parse_http_request(request_data):
     return request
 
 
-def create_http_response(status_code=500, status_message="Internal Server Error", content="", content_type="text/html"):
+def create_http_response(status_code=500, status_message="Internal Server Error", content="", content_type="text/html",
+                         compression=False):
     # HTTP response
+    print(compression)
     response = f"HTTP/1.1 {status_code} {status_message}\r\n"
     response += f"Content-Type: {content_type}\r\n"  # "; charset=utf-8\r\n"
-    response += f"Content-Length: {len(content)}\r\n"
+
+    if compression:
+        result = encode_to_gzip(content)
+        if result:
+            content = result
+            response += f"Content-Length: {len(content)}\r\n"
+            response += f"Content-Encoding: gzip\r\n"
+    else:
+        response += f"Content-Length: {len(content)}\r\n"
+        content = content.encode('utf-8')
+
     response += "\r\n"  # blank line to indicate the end of headers
-    response += content
-    return response.encode("utf-8")
+    return response.encode('utf-8') + content
 
 
 def handle_client(client_socket, directory_path):
@@ -72,14 +96,17 @@ def handle_client(client_socket, directory_path):
         request = parse_http_request(data)
         method = request['method']
         path = request['path']
+        print(request['headers'])
+        compression = True if 'accept-encoding' in request['headers'] and request['headers'][
+            'accept-encoding'] == "gzip" else False
         if method.upper() == "GET":
             if path == "/" or path == "" or path is None:
-                response = create_http_response(200, "OK")
+                response = create_http_response(200, "OK", compression=compression)
             elif path.startswith(echo):
-                response = create_http_response(200, "OK", path[len(echo):].strip(), "text/plain")
+                response = create_http_response(200, "OK", path[len(echo):].strip(), "text/plain", compression)
             elif path.startswith(user_agent):
                 # very much the happy path here.
-                response = create_http_response(200, "OK", request["headers"]["user-agent"], "text/plain")
+                response = create_http_response(200, "OK", request["headers"]["user-agent"], "text/plain", compression)
             elif path.startswith(files_path):
                 filename = path[len(files_path):].strip()
                 response = read_file_response(path, os.path.join(directory_path, filename))
