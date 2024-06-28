@@ -1,5 +1,9 @@
 # Uncomment this to pass the first stage
 import socket
+import threading
+
+echo = "/echo/"
+user_agent = "/user-agent"
 
 
 def parse_http_request(request_data):
@@ -30,14 +34,7 @@ def create_http_response(status_code, status_message, content="", content_type="
     return response.encode("utf-8")
 
 
-def main():
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    # print("Logs from your program will appear here!")
-    echo = "/echo/"
-    user_agent = "/user-agent"
-    # Uncomment this to pass the first stage
-    server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
-    client_socket, addr = server_socket.accept()  # wait for client
+def handle_client(client_socket, address):
     data = client_socket.recv(4096)
     if data:
         request = parse_http_request(data)
@@ -57,6 +54,20 @@ def main():
             client_socket.sendall(create_http_response(404, "Not Found", path))
     else:
         client_socket.sendall(create_http_response(200, "OK"))
+    client_socket.close()
+
+
+def main():
+    # You can use print statements as follows for debugging, they'll be visible when running tests.
+    # print("Logs from your program will appear here!")
+
+    # Uncomment this to pass the first stage
+    server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
+    server_socket.listen()
+    while True:
+        client_socket, addr = server_socket.accept()  # wait for client
+        client_thread = threading.Thread(target=handle_client, args=(client_socket, addr))
+        client_thread.start()
 
 
 if __name__ == "__main__":
