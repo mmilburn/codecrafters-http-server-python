@@ -55,6 +55,8 @@ def parse_http_request(request_data):
             value = value.strip()
             if key:
                 request["headers"][key] = value
+                if "," in value:
+                    request["headers"][key] = set([x.strip() for x in value.split(",")])
                 if key == "content-length":
                     request["headers"][key] = int(value)
         else:
@@ -96,9 +98,9 @@ def handle_client(client_socket, directory_path):
         request = parse_http_request(data)
         method = request['method']
         path = request['path']
-        print(request['headers'])
-        compression = True if 'accept-encoding' in request['headers'] and request['headers'][
-            'accept-encoding'] == "gzip" else False
+        # print(request['headers'])
+        compression = True if 'accept-encoding' in request['headers'] and "gzip" in request['headers'][
+            'accept-encoding'] else False
         if method.upper() == "GET":
             if path == "/" or path == "" or path is None:
                 response = create_http_response(200, "OK", compression=compression)
