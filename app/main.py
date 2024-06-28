@@ -3,9 +3,21 @@ import socket
 
 
 def parse_http_request(request_data):
+    request = {"headers": {}}
     lines = request_data.decode('utf-8').splitlines()
     method, path, version = lines[0].split()
-    return method, path, version
+    for line in lines[1:]:
+        line = line.strip()
+        if line != "":
+            key, value = line.split(':', 1)
+            key = key.strip()
+            value = value.strip()
+            if key:
+                request["headers"][key.lower()] = value
+    request['method'] = method
+    request['path'] = path
+    request['version'] = version
+    return request
 
 
 def create_http_response(status_code, status_message, content="", content_type="text/html"):
@@ -22,16 +34,23 @@ def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     # print("Logs from your program will appear here!")
     echo = "/echo/"
+    user_agent = "/user-agent"
     # Uncomment this to pass the first stage
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
     client_socket, addr = server_socket.accept()  # wait for client
     data = client_socket.recv(4096)
     if data:
-        method, path, version = parse_http_request(data)
+        request = parse_http_request(data)
+        path = request['path']
         if path == "/" or path == "" or path is None:
             client_socket.sendall(create_http_response(200, "OK"))
         elif path.startswith(echo):
             content = path[len(echo):]
+            content_type = "text/plain"
+            client_socket.sendall(create_http_response(200, "OK", content, content_type))
+        elif path.startswith(user_agent):
+            # very much the happy path here.
+            content = request["headers"]["user-agent"]
             content_type = "text/plain"
             client_socket.sendall(create_http_response(200, "OK", content, content_type))
         else:
