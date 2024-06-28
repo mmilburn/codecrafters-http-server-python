@@ -1,4 +1,3 @@
-# Uncomment this to pass the first stage
 import argparse
 import os
 import socket
@@ -9,6 +8,28 @@ user_agent = "/user-agent"
 files_path = "/files/"
 
 
+def write_file_response(file_path, content):
+    try:
+        with open(file_path, 'wb') as file:
+            file.write(content)
+            response = create_http_response(201, "Created")
+    except IOError:
+        response = create_http_response(500, "Internal Server Error")
+    return response
+
+
+def read_file_response(http_path, file_path):
+    if os.path.isfile(file_path):
+        try:
+            with open(file_path, 'r') as file:
+                response = create_http_response(200, "OK", file.read(), "application/octet-stream")
+        except FileNotFoundError:
+            response = create_http_response(404, "Not Found", http_path)
+    else:
+        response = create_http_response(404, "Not Found", http_path)
+    return response
+
+
 def parse_http_request(request_data):
     request = {"headers": {}}
     lines = request_data.decode('utf-8').splitlines()
@@ -17,17 +38,24 @@ def parse_http_request(request_data):
         line = line.strip()
         if line != "":
             key, value = line.split(':', 1)
-            key = key.strip()
+            key = key.strip().lower()
             value = value.strip()
             if key:
-                request["headers"][key.lower()] = value
+                request["headers"][key] = value
+                if key == "content-length":
+                    request["headers"][key] = int(value)
+        else:
+            break
     request['method'] = method
     request['path'] = path
     request['version'] = version
+    if "content-length" in request["headers"] and request["headers"]["content-length"] > 0:
+        length = request["headers"]["content-length"]
+        request["body"] = request_data[-length:]
     return request
 
 
-def create_http_response(status_code, status_message, content="", content_type="text/html"):
+def create_http_response(status_code=500, status_message="Internal Server Error", content="", content_type="text/html"):
     # HTTP response
     response = f"HTTP/1.1 {status_code} {status_message}\r\n"
     response += f"Content-Type: {content_type}\r\n"  # "; charset=utf-8\r\n"
@@ -38,41 +66,30 @@ def create_http_response(status_code, status_message, content="", content_type="
 
 
 def handle_client(client_socket, directory_path):
-    data = client_socket.recv(4096)
+    response = create_http_response(status_code=501, status_message="Not Implemented")
+    data = client_socket.recv(8192)
     if data:
         request = parse_http_request(data)
+        method = request['method']
         path = request['path']
-        if path == "/" or path == "" or path is None:
-            client_socket.sendall(create_http_response(200, "OK"))
-        elif path.startswith(echo):
-            content = path[len(echo):].strip()
-            content_type = "text/plain"
-            client_socket.sendall(create_http_response(200, "OK", content, content_type))
-        elif path.startswith(user_agent):
-            # very much the happy path here.
-            content = request["headers"]["user-agent"]
-            content_type = "text/plain"
-            client_socket.sendall(create_http_response(200, "OK", content, content_type))
-        elif path.startswith(files_path):
-            filename = path[len(files_path):].strip()
-            file_path = os.path.join(directory_path, filename)
-            if os.path.isfile(file_path):
-                try:
-                    with open(file_path, 'r') as file:
-                        client_socket.sendall(create_http_response(200, "OK", file.read(), "application/octet-stream"))
-                        buffer = file.read()
-                except FileNotFoundError:
-                    client_socket.sendall(create_http_response(404, "Not Found", path))
-                except IOError as e:
-                    client_socket.sendall(create_http_response(500, "Internal Server Error"))
-                except Exception as e:
-                    client_socket.sendall(create_http_response(500, "Internal Server Error"))
+        if method.upper() == "GET":
+            if path == "/" or path == "" or path is None:
+                response = create_http_response(200, "OK")
+            elif path.startswith(echo):
+                response = create_http_response(200, "OK", path[len(echo):].strip(), "text/plain")
+            elif path.startswith(user_agent):
+                # very much the happy path here.
+                response = create_http_response(200, "OK", request["headers"]["user-agent"], "text/plain")
+            elif path.startswith(files_path):
+                filename = path[len(files_path):].strip()
+                response = read_file_response(path, os.path.join(directory_path, filename))
             else:
-                client_socket.sendall(create_http_response(404, "Not Found", path))
-        else:
-            client_socket.sendall(create_http_response(404, "Not Found", path))
-    else:
-        client_socket.sendall(create_http_response(200, "OK"))
+                response = create_http_response(404, "Not Found", path)
+        elif method.upper() == "POST" and path.startswith(files_path):
+            filename = path[len(files_path):].strip()
+            response = write_file_response(os.path.join(directory_path, filename), request["body"])
+
+    client_socket.sendall(response)
     client_socket.close()
 
 
