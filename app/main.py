@@ -8,11 +8,11 @@ def parse_http_request(request_data):
     return method, path, version
 
 
-def create_http_response(status_code, status_message, content=""):
+def create_http_response(status_code, status_message, content="", content_type="text/html"):
     # HTTP response
     response = f"HTTP/1.1 {status_code} {status_message}\r\n"
-    # response += "Content-Type: text/html; charset=utf-8\r\n"
-    # response += f"Content-Length: {len(content)}\r\n"
+    response += f"Content-Type: {content_type}\r\n"  # "; charset=utf-8\r\n"
+    response += f"Content-Length: {len(content)}\r\n"
     response += "\r\n"  # blank line to indicate the end of headers
     response += content
     return response.encode("utf-8")
@@ -21,7 +21,7 @@ def create_http_response(status_code, status_message, content=""):
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     # print("Logs from your program will appear here!")
-
+    echo = "/echo/"
     # Uncomment this to pass the first stage
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
     client_socket, addr = server_socket.accept()  # wait for client
@@ -30,6 +30,10 @@ def main():
         method, path, version = parse_http_request(data)
         if path == "/" or path == "" or path is None:
             client_socket.sendall(create_http_response(200, "OK"))
+        elif path.startswith(echo):
+            content = path[len(echo):]
+            content_type = "text/plain"
+            client_socket.sendall(create_http_response(200, "OK", content, content_type))
         else:
             client_socket.sendall(create_http_response(404, "Not Found", path))
     else:
