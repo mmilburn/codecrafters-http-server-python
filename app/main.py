@@ -3,7 +3,10 @@ import gzip
 import io
 import os
 import socket
+import sys
 import threading
+
+from .HttpRequest import HttpRequest
 
 echo = "/echo/"
 user_agent = "/user-agent"
@@ -42,33 +45,6 @@ def read_file_response(http_path, file_path):
     return response
 
 
-def parse_http_request(request_data):
-    request = {"headers": {}}
-    lines = request_data.decode('utf-8').splitlines()
-    method, path, version = lines[0].split()
-    for line in lines[1:]:
-        line = line.strip()
-        if line != "":
-            key, value = line.split(':', 1)
-            key = key.strip().lower()
-            value = value.strip()
-            if key:
-                request["headers"][key] = value
-                if "," in value:
-                    request["headers"][key] = set([x.strip() for x in value.split(",")])
-                if key == "content-length":
-                    request["headers"][key] = int(value)
-        else:
-            break
-    request['method'] = method
-    request['path'] = path
-    request['version'] = version
-    if "content-length" in request["headers"] and request["headers"]["content-length"] > 0:
-        length = request["headers"]["content-length"]
-        request["body"] = request_data[-length:]
-    return request
-
-
 def create_http_response(status_code=500, status_message="Internal Server Error", content="", content_type="text/html",
                          compression=False):
     # HTTP response
@@ -93,27 +69,26 @@ def handle_client(client_socket, directory_path):
     response = create_http_response(status_code=501, status_message="Not Implemented")
     data = client_socket.recv(8192)
     if data:
-        request = parse_http_request(data)
-        method = request['method']
-        path = request['path']
-        compression = True if 'accept-encoding' in request['headers'] and "gzip" in request['headers'][
-            'accept-encoding'] else False
-        if method.upper() == "GET":
-            if path == "/" or path == "" or path is None:
-                response = create_http_response(200, "OK", compression=compression)
-            elif path.startswith(echo):
-                response = create_http_response(200, "OK", path[len(echo):].strip(), "text/plain", compression)
-            elif path.startswith(user_agent):
+        request = HttpRequest(data)
+        if request.method() == "GET":
+            if request.path() == "/" or request.path() == "" or request.path() is None:
+                response = create_http_response(200, "OK", compression=request.use_gzip())
+            elif request.path().startswith(echo):
+                response = create_http_response(200, "OK", request.path()[len(echo):].strip(), "text/plain",
+                                                request.use_gzip())
+            elif request.path().startswith(user_agent):
                 # very much the happy path here.
-                response = create_http_response(200, "OK", request["headers"]["user-agent"], "text/plain", compression)
-            elif path.startswith(files_path):
-                filename = path[len(files_path):].strip()
-                response = read_file_response(path, os.path.join(directory_path, filename))
+                response = create_http_response(200, "OK", request.user_agent(), "text/plain", request.use_gzip())
+            elif request.path().startswith(files_path):
+                filename = request.path()[len(files_path):].strip()
+                response = read_file_response(request.path(), os.path.join(directory_path, filename))
             else:
-                response = create_http_response(404, "Not Found", path)
-        elif method.upper() == "POST" and path.startswith(files_path):
-            filename = path[len(files_path):].strip()
-            response = write_file_response(os.path.join(directory_path, filename), request["body"])
+                response = create_http_response(404, "Not Found", request.path())
+        elif request.method() == "POST" and request.path().startswith(files_path):
+            filename = request.path()[len(files_path):].strip()
+            response = write_file_response(os.path.join(directory_path, filename), request.body())
+        else:
+            print(f"Unhandled request: {request.method()} {request.path()}", file=sys.stderr)
 
     client_socket.sendall(response)
     client_socket.close()
