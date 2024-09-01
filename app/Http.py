@@ -132,7 +132,7 @@ class HttpResponseBuilder:
 
     def __init__(self):
         self._status_line = None
-        self._headers = None
+        self._headers = Headers()
         self._body = None
 
     def set_status(self, status_code):
