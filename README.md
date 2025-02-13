@@ -1,38 +1,32 @@
-[![progress-banner](https://backend.codecrafters.io/progress/http-server/037971ef-1321-42d6-9102-22427875579d)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
+# About the Project
 
-This is a starting point for Python solutions to the
+This is a finished Python implementation for the
 ["Build Your Own HTTP server" Challenge](https://app.codecrafters.io/courses/http-server/overview).
+This code implements functionality for all stages (and extensions) of the
+challenge as of 2025-02-13.
 
-[HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) is the
-protocol that powers the web. In this challenge, you'll build a HTTP/1.1 server
-that is capable of serving multiple clients.
+## What can it do?
 
-Along the way you'll learn about TCP servers,
-[HTTP request syntax](https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html),
-and more.
+1. Respond to a `GET` request made to `/echo/{string}` with a body of `{string}`
+2. Respond to a `GET` request made to `/user-agent` with a body containing your
+   user-agent.
+3. Return a file when a `GET` request is made to `/files/{filename}` given the
+   server is started with the command line option `--directory <dir>` and
+   `{filename}` is present in the `<dir>`.
+4. Write a file `{filename}` to `<dir>` when a `POST` request is made to
+   `/files/{filename}` and `--directory <dir>` is provided on the command line.
+5. Respond with a `gzip` encoded body when the client's `Accept-Encoding` header
+   contains `gzip`.
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+# TODO
 
-# Passing the first stage
+- [ ] Refactor code to be more pythonic
+- [ ] Restructure the project into a codebase that is simple to maintain and
+  extend (demonstrate how I approach _software engineering_ versus just slinging
+  code).
 
-The entry point for your HTTP server implementation is in `app/main.py`. Study
-and uncomment the relevant code, and push your changes to pass the first stage:
+# Test Run Video
 
-```sh
-git add .
-git commit -m "pass 1st stage" # any msg
-git push origin master
-```
+A short video of the code being run in the codecrafters test environment:
 
-Time to move on to the next stage!
-
-# Stage 2 & beyond
-
-Note: This section is for stages 2 and beyond.
-
-1. Ensure you have `python (3.11)` installed locally
-1. Run `./your_server.sh` to run your program, which is implemented in
-   `app/main.py`.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+https://github.com/user-attachments/assets/6bb0cb53-ee2a-4fdf-97e3-9d76e752a986
