@@ -7,7 +7,8 @@ challenge as of 2025-02-13.
 
 ## What can it do?
 
-1. Respond to a `GET` request made to `/echo/{string}` with a body of `{string}`
+1. Respond to a `GET` request made to `/echo/{string}` with a body of
+   `{string}`.
 2. Respond to a `GET` request made to `/user-agent` with a body containing your
    user-agent.
 3. Return a file when a `GET` request is made to `/files/{filename}` given the
@@ -20,7 +21,7 @@ challenge as of 2025-02-13.
 
 # TODO
 
-- [ ] Refactor code to be more pythonic
+- [ ] Refactor code to be more pythonic.
 - [ ] Restructure the project into a codebase that is simple to maintain and
   extend (demonstrate how I approach _software engineering_ versus just slinging
   code).
